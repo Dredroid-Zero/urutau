@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #07090e;
+    color: #e2e8f0;
+    margin: 0;
+  }
+
+  .font-mono,
+  code,
+  pre {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Precision dark scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b0e17;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Aladin Lite dark astronomical integration */
+.aladin-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #05070c;
+  overflow: hidden;
+}
+
+.aladin-container .aladin-reticleColor {
+  color: #06b6d4;
+}
+
+.aladin-container .aladin-input-text,
+.aladin-container .aladin-stack-box,
+.aladin-container .aladin-status-bar,
+.aladin-container .aladin-projection-control,
+.aladin-container .aladin-fov {
+  display: none !important;
+}
