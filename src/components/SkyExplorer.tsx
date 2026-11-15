@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ChevronDown,
   Compass,
   Crosshair,
   Grid3X3,
@@ -10,7 +11,7 @@ import {
   Radar,
   RotateCcw,
   Search,
-  Sparkles,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { CUTOUT_DEFAULTS, estimateCutoutTransfer } from '../config/spherex';
 import {
@@ -132,6 +133,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
   const [aladinStatus, setAladinStatus] = useState<'loading' | 'ready' | 'fallback'>('loading');
   const [cubeFrame, setCubeFrame] = useState<number>(63);
   const [epochYear, setEpochYear] = useState<number>(2026.5);
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [cursorSky, setCursorSky] = useState<{ ra: number; dec: number }>({ ra: raDeg, dec: decDeg });
   const [dragStart, setDragStart] = useState<{ x: number; y: number; ra: number; dec: number; moved: boolean } | null>(null);
 
@@ -561,237 +563,16 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
       : null;
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-7.5rem)] min-h-[640px] bg-[#07090E] border border-slate-800 rounded-md overflow-hidden">
-      {/* Left Control & Target Rail */}
-      <aside className="w-full lg:w-[360px] shrink-0 bg-[#0B0E17] border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col overflow-y-auto p-4 gap-5">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-100 tracking-wide mb-2">
-            {t.searchPlaceholder.split('(')[0].trim()}
-          </h2>
-          <form onSubmit={handleSearchSubmit} className="flex flex-col gap-2">
-            <label htmlFor="sky-search-input" className="sr-only">
-              {t.searchPlaceholder}
-            </label>
-            <div className="relative">
-              <input
-                id="sky-search-input"
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder={t.searchPlaceholder}
-                className="w-full bg-[#07090E] border border-slate-700 focus:border-cyan-500 rounded px-3 py-2 pr-9 text-xs font-mono text-slate-100 placeholder:text-slate-500 focus:outline-none"
-              />
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={resolving}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-medium py-2 px-3 rounded border border-slate-700 transition-colors cursor-pointer whitespace-nowrap"
-              >
-                {resolving ? '...' : t.goBtn}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onQueryArchive(raDeg, decDeg);
-                  onGoToObservations();
-                }}
-                disabled={isQuerying}
-                className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-semibold py-2 px-3 rounded transition-colors cursor-pointer whitespace-nowrap"
-              >
-                {t.queryArchiveBtn}
-              </button>
-            </div>
-          </form>
-          {searchError && <p className="text-xs text-rose-400 mt-2">{searchError}</p>}
-        </div>
-
-        {/* Cutout Size & Transfer Estimator */}
-        <div className="border-t border-slate-800 pt-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <label htmlFor="cutout-size-select" className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              {t.cutoutSizeLabel}
-            </label>
-            <span className="text-xs font-mono text-cyan-300 tabular-nums">
-              {cutoutSizeDeg.toFixed(2)}° ({(cutoutSizeDeg * 60).toFixed(1)}')
-            </span>
-          </div>
-          <select
-            id="cutout-size-select"
-            value={cutoutSizeDeg}
-            onChange={(e) => onChangeCutoutSize(Number(e.target.value))}
-            className="w-full bg-[#07090E] border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100"
-          >
-            <option value={0.05}>0.05° (3.0' · Default ~29×29 px)</option>
-            <option value={0.10}>0.10° (6.0' · ~59×59 px)</option>
-            <option value={0.15}>0.15° (9.0' · ~88×88 px)</option>
-            <option value={CUTOUT_DEFAULTS.maxFovDeg}>0.20° (12.0' · Max ~117×117 px)</option>
-          </select>
-          <p className="text-[11px] font-mono text-slate-400 tabular-nums">
-            Est. {cutoutEstimate.pixelsPerSide}×{cutoutEstimate.pixelsPerSide} px · ~{cutoutEstimate.mbPerFrame.toFixed(1)} MB/frame (~{cutoutEstimate.estimatedSeconds}s for {Math.max(1, Math.min(6, observations.length || 4))} frames)
-          </p>
-        </div>
-
-        {/* Challenge & Reference Targets */}
-        <div className="border-t border-slate-800 pt-4">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">
-            {t.challengeTargets}
-          </h3>
-          <div className="flex flex-col gap-1.5">
-            {CHALLENGE_TARGETS.map((target) => {
-              const isActive = activeTarget?.id === target.id;
-              const isResolvingThis = resolvingTargetId === target.id;
-              const resolved = target.resolvedInfo ?? (isActive && lastResolvedInfo?.query === target.simbadId ? lastResolvedInfo : undefined);
-              return (
-                <button
-                  key={target.id}
-                  type="button"
-                  disabled={isResolvingThis}
-                  onClick={() => onSelectTargetPreset(target)}
-                  className={`text-left px-3 py-2 rounded border transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-cyan-950/40 border-cyan-500/60 text-slate-100'
-                      : 'bg-[#07090E] border-slate-800 hover:border-slate-700 text-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold truncate flex items-center gap-1.5">
-                      {isResolvingThis && <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />}
-                      {lang === 'pt' ? target.namePt : target.name}
-                    </span>
-                    <span className="text-[11px] font-mono text-slate-400 shrink-0">
-                      {target.simbadResolveRequired
-                        ? resolved
-                          ? 'SIMBAD OK'
-                          : 'SIMBAD Live'
-                        : target.category === 'high-pm'
-                        ? 'Challenge'
-                        : 'QR3 Cal'}
-                    </span>
-                  </div>
-                  <div className="text-[11px] font-mono text-slate-400 mt-0.5 tabular-nums">
-                    {resolved
-                      ? `${degToHms(resolved.ra, 2)} · ${degToDms(resolved.dec, 1)}`
-                      : `${target.raDisplay} · ${target.decDisplay}`}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Active Target Proper Motion & Scientific Context */}
-        {(activeTarget || lastResolvedInfo) && (
-          <div className="border-t border-slate-800 pt-4 space-y-2.5">
-            {propagated && (
-              <>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300">
-                    {t.epochPropagation}
-                  </span>
-                  <span className="text-xs font-mono text-cyan-400 tabular-nums">
-                    {epochYear.toFixed(1)}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  aria-label={t.epochPropagation}
-                  min={2000}
-                  max={2027}
-                  step={0.5}
-                  value={epochYear}
-                  onChange={(e) => setEpochYear(Number(e.target.value))}
-                  className="w-full accent-cyan-500 cursor-pointer"
-                />
-                <div className="text-[11px] font-mono text-slate-300 bg-[#07090E] border border-slate-800 rounded p-2 space-y-1 tabular-nums">
-                  <div>RA ({epochYear.toFixed(1)}): {degToHms(propagated.ra, 3)}</div>
-                  <div>Dec ({epochYear.toFixed(1)}): {degToDms(propagated.dec, 2)}</div>
-                  {pmRaActive !== null && pmDecActive !== null && (
-                    <div className="text-slate-400">
-                      PM: ({pmRaActive.toFixed(1)}, {pmDecActive.toFixed(1)}) mas/yr
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-            {activeTarget && (
-              <>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {lang === 'pt' ? activeTarget.summaryPt : activeTarget.summaryEn}
-                </p>
-                {(activeTarget.resolutionNoteEn || activeTarget.resolutionNotePt) && (
-                  <p className="text-[11px] text-amber-300 bg-amber-950/25 border border-amber-500/30 rounded p-2 leading-relaxed">
-                    {lang === 'pt' ? activeTarget.resolutionNotePt : activeTarget.resolutionNoteEn}
-                  </p>
-                )}
-                <p className="text-[11px] text-slate-500 font-mono">
-                  {activeTarget.coordEpochNote}
-                </p>
-              </>
-            )}
-            {lastResolvedInfo && (
-              <div className="text-[11px] font-mono text-emerald-300 bg-emerald-950/20 border border-emerald-500/30 rounded p-2">
-                {lastResolvedInfo.source}: {lastResolvedInfo.name} ({lastResolvedInfo.otype}, J{lastResolvedInfo.epochYear})
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Survey Layer Selector */}
-        <div className="border-t border-slate-800 pt-4 space-y-2">
-          <label htmlFor="survey-select" className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5" />
-            {t.surveyLayer}
-          </label>
-          <select
-            id="survey-select"
-            value={surveyId}
-            onChange={(e) => setSurveyId(e.target.value as SurveyLayerId)}
-            className="w-full bg-[#07090E] border border-slate-700 rounded px-2.5 py-2 text-xs text-slate-100 focus:border-cyan-500 focus:outline-none"
-          >
-            {Object.entries(SURVEY_CONFIGS).map(([id, cfg]) => (
-              <option key={id} value={id}>
-                {lang === 'pt' ? cfg.labelPt : cfg.labelEn}
-              </option>
-            ))}
-          </select>
-          <div className={`text-[11px] ${SURVEY_CONFIGS[surveyId].isSpherex ? 'text-cyan-400' : 'text-amber-400'}`}>
-            {SURVEY_CONFIGS[surveyId].provenance}
-          </div>
-
-          {surveyId === 'spherex_cube' && (
-            <div className="pt-2 space-y-1">
-              <label htmlFor="cube-slice-select" className="text-[11px] text-slate-400 block">
-                {t.cubeWavelengthChannel}
-              </label>
-              <select
-                id="cube-slice-select"
-                value={cubeFrame}
-                onChange={(e) => setCubeFrame(Number(e.target.value))}
-                className="w-full bg-[#07090E] border border-slate-700 rounded px-2 py-1.5 text-xs font-mono text-slate-200"
-              >
-                {SPHEREX_PREVIEW_CHANNELS.map((ch) => (
-                  <option key={ch.frame} value={ch.frame}>
-                    Ch {ch.frame} · {ch.wavelength}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[10px] text-slate-500">{t.cubeResolutionNote}</p>
-            </div>
-          )}
-        </div>
-      </aside>
-
-      {/* Main Sky Atlas Viewport */}
-      <div className="flex-1 flex flex-col relative min-h-[420px]">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-[#0B0E17] border-b border-slate-800 text-xs">
-          <div className="flex flex-wrap items-center gap-4 font-mono tabular-nums">
-            <span className="text-slate-300 flex items-center gap-1.5">
-              <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
+    <div className="flex flex-col lg:flex-row-reverse lg:h-[calc(100vh-6.25rem)] lg:min-h-[620px] bg-[#07090E] border border-slate-800 rounded-lg overflow-hidden">
+      {/* Main Sky Atlas Viewport — rendered FIRST in mobile flow so the sky map is immediately front-and-center */}
+      <div className="flex-1 flex flex-col relative h-[54vh] min-h-[360px] lg:h-auto lg:min-h-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 bg-[#0B0E17] border-b border-slate-800 text-xs">
+          <div className="flex flex-wrap items-center gap-3 font-mono tabular-nums">
+            <span className="text-slate-200 flex items-center gap-1.5">
+              <Crosshair className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               ICRS {degToHms(raDeg, 3)} {degToDms(decDeg, 2)}
             </span>
-            <span className="text-slate-500">
+            <span className="text-slate-500 hidden sm:inline">
               ({raDeg.toFixed(5)}°, {decDeg.toFixed(5)}°)
             </span>
             <span className="text-slate-400">
@@ -799,11 +580,11 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => setShowCoverage((v) => !v)}
-              className={`px-2.5 py-1 rounded border text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-2.5 py-1.5 rounded border text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors ${
                 showCoverage
                   ? 'bg-cyan-950/50 border-cyan-500/60 text-cyan-200'
                   : 'bg-[#07090E] border-slate-700 text-slate-300 hover:border-slate-600'
@@ -815,7 +596,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
             <button
               type="button"
               onClick={() => setShowGrid((v) => !v)}
-              className={`px-2.5 py-1 rounded border text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-2.5 py-1.5 rounded border text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors ${
                 showGrid
                   ? 'bg-cyan-950/50 border-cyan-500/60 text-cyan-200'
                   : 'bg-[#07090E] border-slate-700 text-slate-300 hover:border-slate-600'
@@ -828,7 +609,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
               type="button"
               onClick={() => onChangeFov(Math.max(0.05, fovDeg * 0.5))}
               aria-label="Zoom In"
-              className="p-1.5 rounded bg-[#07090E] border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
+              className="p-1.5 rounded bg-[#07090E] border border-slate-700 text-slate-300 hover:text-white cursor-pointer transition-colors"
             >
               <Maximize2 className="w-3.5 h-3.5" />
             </button>
@@ -836,7 +617,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
               type="button"
               onClick={() => onChangeFov(Math.min(60, fovDeg * 2))}
               aria-label="Zoom Out"
-              className="p-1.5 rounded bg-[#07090E] border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
+              className="p-1.5 rounded bg-[#07090E] border border-slate-700 text-slate-300 hover:text-white cursor-pointer transition-colors"
             >
               <Minimize2 className="w-3.5 h-3.5" />
             </button>
@@ -844,14 +625,14 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
               type="button"
               onClick={() => onChangeFov(0.75)}
               aria-label="Reset FoV"
-              className="p-1.5 rounded bg-[#07090E] border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
+              className="p-1.5 rounded bg-[#07090E] border border-slate-700 text-slate-300 hover:text-white cursor-pointer transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
               onClick={() => setAtlasMode((m) => (m === 'aladin' ? 'canvas' : 'aladin'))}
-              className="px-2.5 py-1 rounded bg-[#07090E] border border-slate-700 text-xs text-slate-300 hover:text-white cursor-pointer whitespace-nowrap"
+              className="px-2.5 py-1.5 rounded bg-[#07090E] border border-slate-700 text-xs text-slate-300 hover:text-white cursor-pointer whitespace-nowrap transition-colors"
             >
               {atlasMode === 'aladin' ? t.atlasModeCanvas : t.atlasModeAladin}
             </button>
@@ -929,7 +710,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
             <span>
               Cursor: {degToHms(cursorSky.ra, 2)} {degToDms(cursorSky.dec, 1)}
             </span>
-            <span className="text-slate-500">Click map to select & search</span>
+            <span className="text-slate-500 hidden sm:inline">Click map to select & search</span>
           </div>
 
           {/* Bottom-right direct investigation CTA (kept clear of Aladin watermark) */}
@@ -940,14 +721,238 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
                 onQueryArchive(raDeg, decDeg);
                 onGoToObservations();
               }}
-              className="bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-semibold px-3.5 py-2 rounded shadow-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              className="bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-semibold px-4 py-2 rounded shadow-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Radar className="w-3.5 h-3.5" />
               {t.queryArchiveBtn}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Left Control Rail (desktop) / Below Map (mobile) — streamlined, progressive disclosure */}
+      <aside className="w-full lg:w-[330px] shrink-0 bg-[#0B0E17] border-t lg:border-t-0 lg:border-r border-slate-800 flex flex-col overflow-y-auto p-4 gap-4">
+        {/* 1. Target Search & Action */}
+        <div>
+          <h2 className="text-xs font-semibold text-slate-300 tracking-wide mb-2">
+            {t.searchPlaceholder.split('(')[0].trim()}
+          </h2>
+          <form onSubmit={handleSearchSubmit} className="flex flex-col gap-2">
+            <label htmlFor="sky-search-input" className="sr-only">
+              {t.searchPlaceholder}
+            </label>
+            <div className="relative">
+              <input
+                id="sky-search-input"
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t.searchPlaceholder}
+                className="w-full bg-[#07090E] border border-slate-700 focus:border-cyan-500 rounded px-3 py-2 pr-9 text-xs font-mono text-slate-100 placeholder:text-slate-500 focus:outline-none"
+              />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={resolving}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-medium py-2 px-3 rounded border border-slate-700 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                {resolving ? '...' : t.goBtn}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onQueryArchive(raDeg, decDeg);
+                  onGoToObservations();
+                }}
+                disabled={isQuerying}
+                className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-semibold py-2 px-3 rounded transition-colors cursor-pointer whitespace-nowrap"
+              >
+                {t.queryArchiveBtn}
+              </button>
+            </div>
+          </form>
+          {searchError && <p className="text-xs text-rose-400 mt-2">{searchError}</p>}
+        </div>
+
+        {/* 2. Quick Challenge & Reference Targets (2-column compact grid) */}
+        <div className="border-t border-slate-800 pt-3.5">
+          <h3 className="text-xs font-semibold text-slate-400 mb-2">
+            {t.challengeTargets}
+          </h3>
+          <div className="grid grid-cols-2 gap-1.5">
+            {CHALLENGE_TARGETS.map((target) => {
+              const isActive = activeTarget?.id === target.id;
+              const isResolvingThis = resolvingTargetId === target.id;
+              const resolved =
+                target.resolvedInfo ??
+                (isActive && lastResolvedInfo?.query === target.simbadId ? lastResolvedInfo : undefined);
+              return (
+                <button
+                  key={target.id}
+                  type="button"
+                  disabled={isResolvingThis}
+                  onClick={() => onSelectTargetPreset(target)}
+                  className={`text-left px-2.5 py-2 rounded border transition-colors cursor-pointer ${
+                    isActive
+                      ? 'bg-cyan-950/40 border-cyan-500/60 text-slate-100'
+                      : 'bg-[#07090E] border-slate-800 hover:border-slate-700 text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-medium truncate flex items-center gap-1">
+                      {isResolvingThis && <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />}
+                      {lang === 'pt' ? target.namePt : target.name}
+                    </span>
+                  </div>
+                  <div className="text-[10px] font-mono text-slate-400 mt-0.5 truncate tabular-nums">
+                    {resolved
+                      ? `${degToHms(resolved.ra, 0)} · ${degToDms(resolved.dec, 0)}`
+                      : target.simbadResolveRequired
+                      ? 'SIMBAD Live'
+                      : `${target.raDisplay.slice(0, 6)} · ${target.decDisplay.slice(0, 7)}`}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {lastResolvedInfo && (
+            <p className="text-[11px] font-mono text-emerald-300 mt-2 truncate" title={`${lastResolvedInfo.source}: ${lastResolvedInfo.name}`}>
+              {lastResolvedInfo.source}: {lastResolvedInfo.name} ({lastResolvedInfo.otype})
+            </p>
+          )}
+        </div>
+
+        {/* 3. Sky Survey Layer & Spectral Channel */}
+        <div className="border-t border-slate-800 pt-3.5 space-y-2">
+          <label htmlFor="survey-select" className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5" />
+            {t.surveyLayer}
+          </label>
+          <select
+            id="survey-select"
+            value={surveyId}
+            onChange={(e) => setSurveyId(e.target.value as SurveyLayerId)}
+            className="w-full bg-[#07090E] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:border-cyan-500 focus:outline-none"
+          >
+            {Object.entries(SURVEY_CONFIGS).map(([id, cfg]) => (
+              <option key={id} value={id}>
+                {lang === 'pt' ? cfg.labelPt : cfg.labelEn}
+              </option>
+            ))}
+          </select>
+          <div className={`text-[11px] ${SURVEY_CONFIGS[surveyId].isSpherex ? 'text-cyan-400' : 'text-amber-400'}`}>
+            {SURVEY_CONFIGS[surveyId].provenance}
+          </div>
+
+          {surveyId === 'spherex_cube' && (
+            <div className="pt-1 space-y-1">
+              <label htmlFor="cube-slice-select" className="text-[11px] text-slate-400 block">
+                {t.cubeWavelengthChannel}
+              </label>
+              <select
+                id="cube-slice-select"
+                value={cubeFrame}
+                onChange={(e) => setCubeFrame(Number(e.target.value))}
+                className="w-full bg-[#07090E] border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200"
+              >
+                {SPHEREX_PREVIEW_CHANNELS.map((ch) => (
+                  <option key={ch.frame} value={ch.frame}>
+                    Ch {ch.frame} · {ch.wavelength}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-500">{t.cubeResolutionNote}</p>
+            </div>
+          )}
+        </div>
+
+        {/* 4. Collapsible Cutout Size, Proper Motion & Target Notes */}
+        <div className="border-t border-slate-800 pt-3">
+          <button
+            type="button"
+            aria-expanded={showAdvanced}
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="w-full flex items-center justify-between text-xs font-medium text-slate-300 hover:text-white py-1 cursor-pointer"
+          >
+            <span className="flex items-center gap-1.5">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+              {t.cutoutSizeLabel}: <span className="font-mono text-cyan-300 tabular-nums">{cutoutSizeDeg.toFixed(2)}°</span>
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 text-slate-400 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {(showAdvanced || propagated !== null) && (
+            <div className="mt-2.5 space-y-3">
+              {showAdvanced && (
+                <div className="space-y-1.5">
+                  <label htmlFor="cutout-size-select" className="sr-only">
+                    {t.cutoutSizeLabel}
+                  </label>
+                  <select
+                    id="cutout-size-select"
+                    value={cutoutSizeDeg}
+                    onChange={(e) => onChangeCutoutSize(Number(e.target.value))}
+                    className="w-full bg-[#07090E] border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100"
+                  >
+                    <option value={0.05}>0.05° (3.0' · Default ~29×29 px)</option>
+                    <option value={0.10}>0.10° (6.0' · ~59×59 px)</option>
+                    <option value={0.15}>0.15° (9.0' · ~88×88 px)</option>
+                    <option value={CUTOUT_DEFAULTS.maxFovDeg}>0.20° (12.0' · Max ~117×117 px)</option>
+                  </select>
+                  <p className="text-[11px] font-mono text-slate-400 tabular-nums">
+                    Est. {cutoutEstimate.pixelsPerSide}×{cutoutEstimate.pixelsPerSide} px · ~{cutoutEstimate.mbPerFrame.toFixed(1)} MB/frame (~{cutoutEstimate.estimatedSeconds}s)
+                  </p>
+                </div>
+              )}
+
+              {propagated && (
+                <div className="space-y-1.5 pt-1 border-t border-slate-800/70">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-300">{t.epochPropagation}</span>
+                    <span className="text-xs font-mono text-cyan-400 tabular-nums">{epochYear.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    aria-label={t.epochPropagation}
+                    min={2000}
+                    max={2027}
+                    step={0.5}
+                    value={epochYear}
+                    onChange={(e) => setEpochYear(Number(e.target.value))}
+                    className="w-full accent-cyan-500 cursor-pointer"
+                  />
+                  <div className="text-[11px] font-mono text-slate-300 tabular-nums flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span>{degToHms(propagated.ra, 2)}</span>
+                    <span>{degToDms(propagated.dec, 1)}</span>
+                    {pmRaActive !== null && pmDecActive !== null && (
+                      <span className="text-slate-400">
+                        PM ({pmRaActive.toFixed(0)}, {pmDecActive.toFixed(0)}) mas/yr
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {showAdvanced && activeTarget && (
+                <div className="space-y-1.5 pt-1 border-t border-slate-800/70">
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    {lang === 'pt' ? activeTarget.summaryPt : activeTarget.summaryEn}
+                  </p>
+                  {(activeTarget.resolutionNoteEn || activeTarget.resolutionNotePt) && (
+                    <p className="text-[11px] text-amber-300 bg-amber-950/25 border border-amber-500/30 rounded p-2 leading-relaxed">
+                      {lang === 'pt' ? activeTarget.resolutionNotePt : activeTarget.resolutionNoteEn}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </aside>
     </div>
   );
 };

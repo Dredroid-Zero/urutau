@@ -1154,13 +1154,11 @@ export default function App() {
         </header>
       )}
 
-      {/* Workspace Context & Language Ribbon */}
+      {/* Slim Workspace Context & Language Ribbon */}
       {!embedMode && (
-        <div className="bg-[#0B0E17] border-b border-slate-800 px-6 py-2 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex flex-wrap items-center gap-3 text-slate-400">
+        <div className="bg-[#0B0E17] border-b border-slate-800/80 px-4 md:px-6 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2.5 text-slate-400">
             <span className="text-slate-200 font-medium">{t.subtitle}</span>
-            <span aria-hidden="true">·</span>
-            <span>GEPPAA / UNILAB</span>
             <span aria-hidden="true">·</span>
             <span className="font-mono text-cyan-300 tabular-nums">
               {activeTarget
@@ -1211,7 +1209,7 @@ export default function App() {
       )}
 
       {/* Main Content Workspace */}
-      <main className="flex-1 p-4 md:p-5 max-w-[1600px] w-full mx-auto">
+      <main className="flex-1 p-3 md:p-4 max-w-[1600px] w-full mx-auto">
         {activeTab === 'explorer' && (
           <SkyExplorer
             lang={lang}
