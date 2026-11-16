@@ -130,6 +130,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
   const [showGrid, setShowGrid] = useState(true);
   const [showCoverage, setShowCoverage] = useState(true);
   const [atlasMode, setAtlasMode] = useState<'aladin' | 'canvas'>('aladin');
+  const [tileMode, setTileMode] = useState(false);
   const [aladinStatus, setAladinStatus] = useState<'loading' | 'ready' | 'fallback'>('loading');
   const [cubeFrame, setCubeFrame] = useState<number>(63);
   const [epochYear, setEpochYear] = useState<number>(2026.5);
@@ -548,10 +549,40 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
         const clickedDec = Math.max(-90, Math.min(90, sky[1]));
         onSelectPosition(clickedRa, clickedDec, null);
         onQueryArchive(clickedRa, clickedDec);
+        onGoToObservations();
       }
     } catch {
       // ignore invalid projection clicks outside sphere
     }
+  };
+
+  // A three-by-three selection overlay makes sky coordinates optional.
+  // Each cell uses the actual Aladin WCS; fallback coordinates are approximate.
+  const selectSkyTile = (row: number, col: number) => {
+    const element = atlasMode === 'aladin' ? aladinContainerRef.current : fallbackCanvasRef.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const x = (col + 0.5) * rect.width / 3;
+    const y = (row + 0.5) * rect.height / 3;
+    let selectedRa: number;
+    let selectedDec: number;
+    const inst = aladinInstanceRef.current;
+    if (atlasMode === 'aladin') {
+      if (!inst || typeof inst.pix2world !== 'function') return;
+      const sky = inst.pix2world(x, y, 'icrs');
+      if (!Array.isArray(sky) || !Number.isFinite(sky[0]) || !Number.isFinite(sky[1])) return;
+      selectedRa = ((sky[0] % 360) + 360) % 360;
+      selectedDec = Math.max(-90, Math.min(90, sky[1]));
+    } else {
+      const scale = Math.min(rect.width, rect.height) / Math.max(0.02, fovDeg);
+      const cosD = Math.max(0.15, Math.cos(decDeg * Math.PI / 180));
+      selectedRa = ((raDeg - (x - rect.width / 2) / (scale * cosD)) % 360 + 360) % 360;
+      selectedDec = Math.max(-90, Math.min(90, decDeg - (y - rect.height / 2) / scale));
+    }
+    setTileMode(false);
+    onSelectPosition(selectedRa, selectedDec, null);
+    onQueryArchive(selectedRa, selectedDec);
+    onGoToObservations();
   };
 
   const pmRaActive = activeTarget?.pmRaMasYr ?? lastResolvedInfo?.pmRaMasYr ?? null;
@@ -564,7 +595,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
 
   return (
     <div className="flex flex-col lg:flex-row-reverse lg:h-[calc(100vh-6.25rem)] lg:min-h-[620px] bg-[#07090E] border border-slate-800 rounded-lg overflow-hidden">
-      {/* Main Sky Atlas Viewport — rendered FIRST in mobile flow so the sky map is immediately front-and-center */}
+      {/* The atlas is the primary navigation, including for visitors without coordinates. */}
       <div className="flex-1 flex flex-col relative h-[54vh] min-h-[360px] lg:h-auto lg:min-h-0">
         <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 bg-[#0B0E17] border-b border-slate-800 text-xs">
           <div className="flex flex-wrap items-center gap-3 font-mono tabular-nums">
@@ -581,6 +612,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
+            <button type="button" aria-pressed={tileMode} onClick={() => setTileMode(v => !v)} className={tileMode ? 'px-3 py-2 rounded bg-cyan-600 text-slate-950 font-semibold' : 'px-3 py-2 rounded bg-slate-800 border border-cyan-700 text-cyan-200 font-semibold hover:bg-slate-700'}>{lang === 'pt' ? 'Selecionar quadrante' : 'Choose a sky tile'}</button>
             <button
               type="button"
               onClick={() => setShowCoverage((v) => !v)}
@@ -688,6 +720,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
                   const clickDec = Math.max(-90, Math.min(90, decDeg - dy / scale));
                   onSelectPosition(clickRa, clickDec, null);
                   onQueryArchive(clickRa, clickDec);
+                  onGoToObservations();
                 }
                 setDragStart(null);
               }}
@@ -701,6 +734,19 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
             />
           )}
 
+          {tileMode && (
+            <div className="absolute inset-0 z-10 grid grid-cols-3 grid-rows-3" role="group" aria-label={lang === 'pt' ? 'Quadrantes selecionáveis do céu' : 'Selectable sky tiles'}>
+              {Array.from({ length: 9 }, (_, i) => (
+                <button key={i} type="button" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onClick={() => selectSkyTile(Math.floor(i / 3), i % 3)} aria-label={lang === 'pt' ? `Selecionar quadrante ${i + 1}` : `Select sky tile ${i + 1}`} className="border border-cyan-300/50 bg-cyan-500/5 hover:bg-cyan-400/30 focus-visible:bg-cyan-400/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200 transition-colors flex items-center justify-center"><span className="rounded-full bg-slate-950/75 text-cyan-100 px-2 py-1 text-xs font-semibold">{i + 1}</span></button>
+              ))}
+            </div>
+          )}
+
+          {atlasMode === 'canvas' && (
+            <div className="absolute top-3 left-3 z-20 pointer-events-none rounded-md border border-amber-500/50 bg-slate-950/90 px-3 py-2 text-xs text-amber-200 max-w-[280px]">
+              {lang === 'pt' ? 'Navegação esquemática: este desenho não é uma imagem SPHEREx. As observações reais são carregadas na próxima etapa.' : 'Schematic navigator: this drawing is not a SPHEREx image. Real observations load in the next step.'}
+            </div>
+          )}
           {/* Bottom-left live cursor & click-to-select hint */}
           <div className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] bg-[#07090E]/90 border border-slate-800 rounded px-3 py-1.5 text-[11px] font-mono text-slate-300 pointer-events-none flex flex-wrap items-center gap-3 tabular-nums">
             <span className="flex items-center gap-1 text-cyan-400">
@@ -710,7 +756,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
             <span>
               Cursor: {degToHms(cursorSky.ra, 2)} {degToDms(cursorSky.dec, 1)}
             </span>
-            <span className="text-slate-500 hidden sm:inline">Click map to select & search</span>
+            <span className="text-slate-500 hidden sm:inline">{lang === 'pt' ? 'Arraste para navegar; clique para escolher a região' : 'Drag to explore; click to choose a region'}</span>
           </div>
 
           {/* Bottom-right direct investigation CTA (kept clear of Aladin watermark) */}
@@ -732,6 +778,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
 
       {/* Left Control Rail (desktop) / Below Map (mobile) — streamlined, progressive disclosure */}
       <aside className="w-full lg:w-[330px] shrink-0 bg-[#0B0E17] border-t lg:border-t-0 lg:border-r border-slate-800 flex flex-col overflow-y-auto p-4 gap-4">
+        <p className="text-sm text-slate-200 leading-relaxed">{lang === 'pt' ? 'Arraste o mapa, amplie ou escolha um quadrante. Você não precisa saber coordenadas.' : 'Drag, zoom, or choose a sky tile. No coordinates required.'}</p>
         {/* 1. Target Search & Action */}
         <div>
           <h2 className="text-xs font-semibold text-slate-300 tracking-wide mb-2">
@@ -824,8 +871,10 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
           )}
         </div>
 
-        {/* 3. Sky Survey Layer & Spectral Channel */}
-        <div className="border-t border-slate-800 pt-3.5 space-y-2">
+        {/* 3. Reference surveys and spectral channels: optional for beginner navigation */}
+        <details className="border-t border-slate-800 pt-3.5">
+          <summary className="text-xs font-medium text-slate-300 cursor-pointer hover:text-white">{lang === 'pt' ? 'Camadas e bandas do mapa (opcional)' : 'Map layers and bands (optional)'}</summary>
+          <div className="mt-3 space-y-2">
           <label htmlFor="survey-select" className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5" />
             {t.surveyLayer}
@@ -866,7 +915,8 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({
               <p className="text-[10px] text-slate-500">{t.cubeResolutionNote}</p>
             </div>
           )}
-        </div>
+          </div>
+        </details>
 
         {/* 4. Collapsible Cutout Size, Proper Motion & Target Notes */}
         <div className="border-t border-slate-800 pt-3">

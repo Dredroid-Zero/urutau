@@ -1,6 +1,0 @@
-{
-  "name": "URUTAU: The Sky in Motion",
-  "description": "Interactive astronomical exploration, temporal SPHEREx viewer, astrometry, and research notebook developed by GEPPAA / UNILAB.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

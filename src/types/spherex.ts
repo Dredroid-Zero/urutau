@@ -202,6 +202,23 @@ export interface CrossEpochMotionCandidate {
   cautionNote: string;
 }
 
+export interface ManualMark {
+  id: string;
+  label: string;
+  color: string;
+  shape: 'circle' | 'cross';
+  raDeg: number;
+  decDeg: number;
+  pixelX: number;
+  pixelY: number;
+  frameId: string;
+  obsId: string;
+  dateObs: string;
+  createdAt: string;
+  /** User-supplied annotation, not a confirmed astronomical detection. */
+  kind: 'user-annotation';
+}
+
 export interface InvestigationRecord {
   id: string;
   title: string;
@@ -214,6 +231,7 @@ export interface InvestigationRecord {
   createdAt: string;
   updatedAt: string;
   observations: SpherexObservation[];
+  manualMarks?: ManualMark[];
   detections: DetectedSource[];
   astrometryDetections?: AstrometricDetectionRecord[];
   astrometryTracks?: AstrometricTrackRecord[];
