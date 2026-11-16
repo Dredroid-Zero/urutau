@@ -112,6 +112,11 @@ export const ObservationExplorer: React.FC<ObservationExplorerProps> = ({
 
   return (
     <div className="space-y-4">
+      <section className="rounded-xl border border-cyan-800/50 bg-cyan-950/20 p-4" aria-label={lang === 'pt' ? 'Como escolher imagens' : 'How to choose images'}>
+        <h2 className="text-lg font-semibold text-white">{lang === 'pt' ? 'Escolha as imagens que deseja comparar' : 'Choose the images you want to compare'}</h2>
+        <p className="text-sm text-slate-300 mt-1">{lang === 'pt' ? 'Confira a data, o detector e o comprimento de onda. Marque duas ou mais observações e clique em Abrir no visualizador. Para acompanhar movimento, prefira o mesmo detector e comprimentos de onda próximos.' : 'Check each observation date, detector and wavelength. Select two or more observations and open them in the viewer. For motion studies, prefer the same detector and similar wavelengths.'}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">{observations.length} {lang === 'pt' ? 'registros encontrados' : 'records found'}</span><span className="text-emerald-300">IRSA · SPHEREx DR1 + QR3</span></div>
+      </section>
       {/* Header & Query Parameters */}
       <div className="bg-[#0B0E17] border border-slate-800 rounded-md p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -157,7 +162,8 @@ export const ObservationExplorer: React.FC<ObservationExplorerProps> = ({
 
       {/* Honest Archive Query Diagnostics */}
       {diagnostics && (
-        <div className="bg-[#0B0E17] border border-slate-800 rounded-md p-4 space-y-3">
+        <details className="bg-[#0B0E17] border border-slate-800 rounded-md p-4 space-y-3">
+          <summary className="text-sm font-medium cursor-pointer text-slate-300 mb-3">{lang === 'pt' ? 'Detalhes da consulta e origem dos dados' : 'Query diagnostics and data provenance'}</summary>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
               {t.archiveStatusTitle}
@@ -234,7 +240,7 @@ export const ObservationExplorer: React.FC<ObservationExplorerProps> = ({
               {t.loadMultiSlewBtn} (2026W21_2A_0001 · D1)
             </button>
           </div>
-        </div>
+        </details>
       )}
 
       {/* Filter & Sort Bar */}
@@ -335,12 +341,12 @@ export const ObservationExplorer: React.FC<ObservationExplorerProps> = ({
               type="button"
               onClick={() =>
                 setSelectedIds((prev) =>
-                  prev.size === filteredObs.length ? new Set() : new Set(filteredObs.map((o) => o.id)),
+                  filteredObs.every((o) => prev.has(o.id)) ? new Set([...prev].filter(id => !filteredObs.some(o => o.id === id))) : new Set([...prev, ...filteredObs.map(o => o.id)]),
                 )
               }
               className="px-2.5 py-1.5 rounded bg-[#07090E] border border-slate-700 text-xs text-slate-300 hover:text-white cursor-pointer"
             >
-              {selectedIds.size === filteredObs.length ? 'Deselect All' : 'Select All'}
+              {filteredObs.every(o => selectedIds.has(o.id)) ? (lang === 'pt' ? 'Desmarcar visíveis' : 'Deselect visible') : (lang === 'pt' ? 'Selecionar visíveis' : 'Select visible')}
             </button>
           )}
           {selectedObservations.length > 0 && (
@@ -368,10 +374,10 @@ export const ObservationExplorer: React.FC<ObservationExplorerProps> = ({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs" aria-label={lang === 'pt' ? 'Imagens do SPHEREx por data e detector' : 'SPHEREx images by date and detector'}>
               <thead>
                 <tr className="border-b border-slate-800 bg-[#07090E] text-slate-400 font-medium">
-                  <th className="py-2.5 px-3 w-8">Sel</th>
+                  <th className="py-2.5 px-3 w-8">✓</th>
                   <th className="py-2.5 px-3">Observation ID / Period</th>
                   <th className="py-2.5 px-3">Detector / λ at Target</th>
                   <th className="py-2.5 px-3">UTC / MJD</th>

@@ -4,6 +4,7 @@ import { AstrometryPanel } from './components/AstrometryPanel';
 import { NotebookReports } from './components/NotebookReports';
 import { ObservationExplorer } from './components/ObservationExplorer';
 import { SkyExplorer } from './components/SkyExplorer';
+import { JourneyGuide } from './components/JourneyGuide';
 import { TemporalViewer } from './components/TemporalViewer';
 import { CUTOUT_DEFAULTS, FLAG_MASK_CONFIG } from './config/spherex';
 import {
@@ -160,7 +161,7 @@ export default function App() {
   const urlInit = useMemo(() => readInitialUrlState(), []);
   const embedMode = urlInit?.embed ?? false;
 
-  const [lang, setLang] = useState<Language>('en');
+  const [lang, setLang] = useState<Language>(() => typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('pt') ? 'pt' : 'en');
   const t = TRANSLATIONS[lang];
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(urlInit?.tab ?? 'explorer');
@@ -306,6 +307,8 @@ export default function App() {
     async (qRa: number, qDec: number, qRadius = searchRadiusDeg) => {
       setIsQuerying(true);
       setStatusNotice(null);
+      setObservations([]);
+      setDiagnostics(null);
       try {
         const resp = await fetch(
           `/api/spherex/observations?ra=${qRa}&dec=${qDec}&radius=${qRadius}`,
@@ -1117,11 +1120,11 @@ export default function App() {
           <nav className="order-last w-full border-t border-slate-800/70 pt-2 md:order-none md:w-auto md:border-t-0 md:pt-0 flex items-center gap-4 md:gap-6 overflow-x-auto text-xs font-medium">
             {(
               [
-                ['explorer', t.navExplorer],
-                ['observations', t.navObservations],
-                ['temporal', t.navTemporal],
-                ['notebook', t.navNotebook],
-                ['about', t.navAbout],
+                ['explorer', lang === 'pt' ? '1 · Explorar o céu' : '1 · Explore the sky'],
+                ['observations', lang === 'pt' ? '2 · Escolher imagens' : '2 · Choose images'],
+                ['temporal', lang === 'pt' ? '3 · Ver mudanças' : '3 · Watch changes'],
+                ['notebook', lang === 'pt' ? '4 · Meus registros' : '4 · My discoveries'],
+                ['about', lang === 'pt' ? 'Sobre' : 'About'],
               ] as const
             ).map(([tabId, label]) => {
               const isActive = activeTab === tabId;
@@ -1130,6 +1133,7 @@ export default function App() {
                   key={tabId}
                   type="button"
                   onClick={() => setActiveTab(tabId)}
+                  aria-current={isActive ? 'page' : undefined}
                   className={`py-1 border-b-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     isActive
                       ? 'border-cyan-400 text-cyan-200'
@@ -1145,10 +1149,10 @@ export default function App() {
           <div className="shrink-0">
             <button
               type="button"
-              onClick={handleCreateInvestigation}
+              onClick={() => setActiveTab('explorer')}
               className="px-3.5 py-2 rounded bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer"
             >
-              {t.primaryAction}
+              {lang === 'pt' ? 'Explorar agora' : 'Start exploring'}
             </button>
           </div>
         </header>
@@ -1209,7 +1213,10 @@ export default function App() {
       )}
 
       {/* Main Content Workspace */}
-      <main className="flex-1 p-3 md:p-4 max-w-[1600px] w-full mx-auto">
+      <main id="main-content" className="flex-1 p-3 md:p-4 max-w-[1600px] w-full mx-auto">
+        {!embedMode && activeTab !== 'about' && (
+          <JourneyGuide lang={lang} activeTab={activeTab} observationCount={observations.length} frameCount={frames.length} onNavigate={setActiveTab} />
+        )}
         {activeTab === 'explorer' && (
           <SkyExplorer
             lang={lang}
