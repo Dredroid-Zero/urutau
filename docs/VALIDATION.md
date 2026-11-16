@@ -5,8 +5,8 @@ Last reviewed: 15 November 2026. This is a **verification plan**, not a declarat
 | Check | Status | Evidence required |
 | --- | --- | --- |
 | Source structure and API paths reviewed | Reviewed in code | \`server.ts\`, relevant components |
-| Mathematical FITS / astrometry unit tests | Present, execution pending CI | Automated test output; fixtures are synthetic |
-| TypeScript and Vite production build | Execution pending CI | CI logs |
+| Mathematical FITS / astrometry unit tests | **Passed in GitHub Actions** | Offline synthetic fixtures; does not establish performance on real SPHEREx data |
+| TypeScript and Vite production build | **Passed in GitHub Actions** | [Quality checks](https://github.com/Dredroid-Zero/urutau/actions/workflows/ci.yml) |
 | Aladin map drag, click and 3×3 tile overlay | Implementation added, browser check pending | Screen recording or manual QA |
 | IRSA TAP or SIA2 returns DR1/QR3 objects | Live test pending | HTTP response and observation ID |
 | IRSA IBE returns parseable FITS cutout | Live test pending | FITS filename, headers, sample pixels |
