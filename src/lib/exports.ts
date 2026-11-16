@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import type { InvestigationRecord } from '../types/spherex';
+import type { InvestigationRecord, ManualMark } from '../types/spherex';
 
 function buildExportMetadataBlock(inv: InvestigationRecord) {
   const proc = inv.processingSettings ?? {
@@ -333,6 +333,7 @@ export function parseImportedNotebookJson(rawText: string): InvestigationRecord 
     createdAt: String(candidate.createdAt ?? now),
     updatedAt: now,
     observations: Array.isArray(candidate.observations) ? candidate.observations : [],
+    manualMarks: Array.isArray(candidate.manualMarks) ? candidate.manualMarks : [],
     detections: Array.isArray(candidate.detections) ? candidate.detections : [],
     astrometryDetections: Array.isArray(candidate.astrometryDetections)
       ? candidate.astrometryDetections
@@ -427,6 +428,31 @@ export function generateInvestigationPdf(inv: InvestigationRecord): void {
     y += 4;
   }
 
+  if ((inv.manualMarks?.length ?? 0) > 0) {
+    const marks = inv.manualMarks ?? [];
+    ensureSpace(17);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Manually Marked Objects (' + marks.length + ')', 14, y);
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    for (const mark of marks.slice(0, 50)) {
+      ensureSpace(16);
+      const header = doc.splitTextToSize(mark.label + ' | RA ' + mark.raDeg.toFixed(6) + ' deg | Dec ' + mark.decDeg.toFixed(6) + ' deg', 180);
+      doc.text(header, 14, y);
+      y += header.length * 4;
+      const reference = doc.splitTextToSize('Frame ' + mark.frameId + ' | Obs ' + mark.obsId + ' | Date ' + mark.dateObs.slice(0, 19) + ' | Pixel (' + mark.pixelX.toFixed(1) + ', ' + mark.pixelY.toFixed(1) + ')', 180);
+      doc.text(reference, 14, y);
+      y += reference.length * 4 + 3;
+    }
+    ensureSpace(10);
+    doc.setTextColor(140, 88, 18);
+    doc.text('User annotations only; not independently confirmed detections.', 14, y);
+    doc.setTextColor(20, 25, 35);
+    y += 10;
+  }
+
   if (astromCount > 0) {
     ensureSpace(20);
     doc.setFont('helvetica', 'bold');
@@ -511,6 +537,68 @@ export function generateInvestigationPdf(inv: InvestigationRecord): void {
 
   const safeName = (inv.title || 'urutau-report').toLowerCase().replace(/[^a-z0-9]+/g, '-');
   doc.save(`${safeName}.pdf`);
+}
+
+
+/**
+ * Export an object-centred record without pretending a named mark is a confirmed detection.
+ * Same-name manual marks are grouped as observations, not as a measured trajectory.
+ */
+export function generateMarkedObjectPdf(inv: InvestigationRecord, mark: ManualMark): void {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  let y = 20;
+  const ensure = (height = 12) => {
+    if (y + height > 277) { doc.addPage(); y = 20; }
+  };
+  const line = (label: string, value: string) => {
+    ensure(15);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(label, 17, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const content = doc.splitTextToSize(value, 172);
+    doc.text(content, 17, y);
+    y += content.length * 4.5 + 3;
+  };
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('URUTAU | Object Observation Record', 17, y);
+  y += 9;
+  doc.setFontSize(12);
+  const title = doc.splitTextToSize(mark.label, 170);
+  doc.text(title, 17, y);
+  y += title.length * 6 + 5;
+  line('Coordinates (ICRS)', 'RA ' + mark.raDeg.toFixed(7) + ' deg, Dec ' + mark.decDeg.toFixed(7) + ' deg');
+  line('Original image', 'Observation ' + mark.obsId + ' | Frame ' + mark.frameId);
+  line('Observation date (UTC)', mark.dateObs || 'Not supplied');
+  line('Image pixel at time of marking', 'x = ' + mark.pixelX.toFixed(2) + ' px, y = ' + mark.pixelY.toFixed(2) + ' px');
+  line('Annotation details', 'Shape: ' + mark.shape + '; color: ' + mark.color + '; created: ' + mark.createdAt);
+  const associated = (inv.manualMarks ?? [])
+    .filter(m => m.label.trim().toLowerCase() === mark.label.trim().toLowerCase())
+    .sort((a, b) => a.dateObs.localeCompare(b.dateObs));
+  if (associated.length > 1) {
+    line('Other frames marked with the same name', associated.length + ' annotations. Identical names do not confirm that these are the same source.');
+    for (const m of associated) {
+      line('Annotated epoch', m.dateObs + ' | ' + m.obsId + ' | RA ' + m.raDeg.toFixed(7) + ', Dec ' + m.decDeg.toFixed(7));
+    }
+  }
+  const frameIds = new Set(associated.map(m => m.frameId));
+  for (const obs of inv.observations.filter(o => frameIds.has(o.id))) {
+    line('SPHEREx provenance', obs.release + ' / D' + obs.detector + ' | ' + obs.bandpassName + ' | ' + obs.dateObs + ' | ' + obs.accessUrl);
+  }
+  ensure(23);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(155, 90, 20);
+  doc.text('Scientific status: unconfirmed manual annotation', 17, y);
+  y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(60, 65, 73);
+  doc.text(doc.splitTextToSize('This record documents user-selected positions in astronomical images. It is not a verified detection or identification. Confirm using calibrated image data, uncertainties and independent follow-up. SPHEREx images: NASA/IPAC IRSA. URUTAU is an independent NASA Space Apps project not endorsed by NASA.', 175), 17, y);
+  const name = (mark.label || 'object').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'object';
+  doc.save('urutau-' + name + '-object.pdf');
 }
 
 function csvEscape(val: string): string {

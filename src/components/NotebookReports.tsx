@@ -14,6 +14,7 @@ import {
   exportInvestigationEcsv,
   exportInvestigationJson,
   generateInvestigationPdf,
+  generateMarkedObjectPdf,
   parseImportedNotebookJson,
   triggerTextDownload,
 } from '../lib/exports';
@@ -218,6 +219,7 @@ export const NotebookReports: React.FC<NotebookReportsProps> = ({
                         <p className="text-[11px] text-slate-500 break-all mt-1">{mark.obsId} · {mark.dateObs.slice(0, 19)}</p>
                         <div className="flex gap-3 mt-2">
                           <button type="button" onClick={() => onOpenManualMark(mark)} className="text-xs text-cyan-300 hover:underline">{lang === 'pt' ? 'Abrir região' : 'Open region'}</button>
+                          <button type="button" onClick={() => generateMarkedObjectPdf(active, mark)} className="text-xs text-emerald-300 hover:underline">{lang === 'pt' ? 'Relatório PDF' : 'PDF report'}</button>
                           <button type="button" onClick={() => onRemoveManualMark(mark.id)} className="text-xs text-rose-300 hover:underline">{lang === 'pt' ? 'Excluir marca' : 'Delete mark'}</button>
                         </div>
                       </div>

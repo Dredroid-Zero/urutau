@@ -11,7 +11,7 @@ URUTAU is an independent public-facing astronomy web application built for the *
 1. **Explore the sky** — pan and zoom the interactive Aladin Lite atlas, enter a target name or RA/Dec, or click **Choose a sky tile** to pick one of nine visible regions.
 2. **Choose images** — query real SPHEREx observations, filter by date, data release, detector and wavelength. Select observations to load.
 3. **Watch changes** — play, pause, step through frames, blink, inspect differences and view calibrated FITS cutouts.
-4. **Save discoveries** — click **Mark object** in the viewer, name the annotation and save its celestial coordinates and observation metadata to your local notebook.
+4. **Save discoveries** — click **Mark object** in the viewer, name the annotation and save its celestial coordinates and observation metadata to your local notebook. Export a PDF record for each marked object or back up the notebook as JSON.
 
 For a first test, use the documented **SPHEREx QR3 calibration field**. The five challenge targets are also provided; object-name resolution may require a live SIMBAD connection.
 

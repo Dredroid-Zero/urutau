@@ -13,7 +13,7 @@ Last reviewed: 15 November 2026. This is a **verification plan**, not a declarat
 | Reprojected frame alignment | Live test pending | Residual measurements on reference stars |
 | Date/wavelength/detector filtering | Manual test pending | Sample record set |
 | Frame-by-frame player, speed, blink and diff | Manual browser test pending | Before/after capture with real frames |
-| Manual annotation and local persistence | Implementation added, browser test pending | Save, reload, jump to object |
+| Manual annotation, per-object PDF and local persistence | Implementation added, browser check pending | Save, reload, PDF export, JSON export/import, jump to object |
 | Gaia DR3 and SIMBAD lookup | Live test pending | Provider response provenance |
 | Barnard's Star | Not yet validated | Epoch propagation, matching-band frames |
 | Epsilon Indi B | Not yet validated | Resolvability caveat, matching epochs |
