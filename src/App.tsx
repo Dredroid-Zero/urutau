@@ -45,6 +45,7 @@ import type {
   GaiaSource,
   InvestigationRecord,
   LoadedSpherexFrame,
+  ManualMark,
   ResolvedTargetInfo,
   SpherexObservation,
 } from './types/spherex';
@@ -70,6 +71,7 @@ function createEmptyInvestigation(
     createdAt: now,
     updatedAt: now,
     observations: [],
+    manualMarks: [],
     detections: [],
     astrometryDetections: [],
     astrometryTracks: [],
@@ -1019,6 +1021,38 @@ export default function App() {
   const activeInvestigation =
     investigations.find((i) => i.id === activeInvId) ?? investigations[0] ?? null;
 
+  const handleAddManualMark = (mark: ManualMark) => {
+    if (!activeInvestigation) {
+      showNotice('Create an investigation to save annotations.', 'error');
+      return;
+    }
+    updateActiveInvestigation({
+      manualMarks: [...(activeInvestigation.manualMarks ?? []), mark],
+      observations: activeInvestigation.observations.some(o => o.id === mark.frameId)
+        ? activeInvestigation.observations
+        : [...activeInvestigation.observations, ...frames.filter(f => f.frameId === mark.frameId).map(f => f.observation)],
+    });
+    showNotice(`Saved "${mark.label}" with ICRS coordinates and source observation.`);
+  };
+
+  const handleRemoveManualMark = (id: string) => {
+    if (!activeInvestigation) return;
+    updateActiveInvestigation({ manualMarks: (activeInvestigation.manualMarks ?? []).filter(m => m.id !== id) });
+  };
+
+  const handleOpenManualMark = (mark: ManualMark) => {
+    setRaDeg(mark.raDeg);
+    setDecDeg(mark.decDeg);
+    const match = frames.findIndex(f => f.frameId === mark.frameId);
+    if (match >= 0) {
+      setActiveFrameIdx(match);
+      setActiveTab('temporal');
+    } else {
+      setActiveTab('explorer');
+      showNotice(lang === 'pt' ? 'Coordenadas restauradas. Consulte o arquivo e reabra a observação indicada no registro.' : 'Coordinates restored. Query the archive and reload the observation listed in the record.');
+    }
+  };
+
   const handleSaveObservationToNotebook = (obs: SpherexObservation) => {
     if (!activeInvestigation) return;
     const exists = activeInvestigation.observations.some((o) => o.id === obs.id);
@@ -1290,6 +1324,9 @@ export default function App() {
               isStacking={isStacking}
               onSaveSnapshot={handleSaveSnapshotToNotebook}
               onAddEpochNote={handleAddEpochNote}
+              manualMarks={activeInvestigation?.manualMarks ?? []}
+              onAddManualMark={handleAddManualMark}
+              onRemoveManualMark={handleRemoveManualMark}
               onLoadQuickDemo={handleLoadVerifiedMultiSlew}
               embedMode={embedMode}
             />
@@ -1338,6 +1375,8 @@ export default function App() {
             onImportInvestigation={handleImportInvestigation}
             onDeleteInvestigation={handleDeleteInvestigation}
             onUpdateActive={updateActiveInvestigation}
+            onOpenManualMark={handleOpenManualMark}
+            onRemoveManualMark={handleRemoveManualMark}
             onAttachCurrentRegion={() =>
               updateActiveInvestigation({
                 targetName: activeTarget ? activeTarget.name : 'Custom Region',

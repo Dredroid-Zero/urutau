@@ -47,6 +47,7 @@ import type {
   AstrometricTrackRecord,
   GaiaSource,
   LoadedSpherexFrame,
+  ManualMark,
 } from '../types/spherex';
 
 type ColormapId = 'grayscale' | 'inferno' | 'viridis' | 'coolwarm';
@@ -70,6 +71,9 @@ interface TemporalViewerProps {
   isStacking?: boolean;
   onSaveSnapshot: (label: string, dataUrl: string) => void;
   onAddEpochNote: (frame: LoadedSpherexFrame, note: string) => void;
+  manualMarks: ManualMark[];
+  onAddManualMark: (mark: ManualMark) => void;
+  onRemoveManualMark: (id: string) => void;
   onLoadQuickDemo: () => void;
   embedMode?: boolean;
 }
@@ -181,6 +185,7 @@ function renderImageToCanvas(
     detections?: AstrometricDetectionRecord[];
     selectedSourceId?: string | null;
     tracks?: AstrometricTrackRecord[];
+    manualMarks?: ManualMark[];
   },
 ) {
   const rect = canvas.getBoundingClientRect();
@@ -367,6 +372,27 @@ function renderImageToCanvas(
       if (started) ctx.stroke();
     }
   }
+  // Manual labels are anchored by ICRS coordinates, not by screen pixels.
+  if (params.manualMarks?.length && wcs) {
+    for (const mark of params.manualMarks) {
+      const pt = projectSkyToCanvas(mark.raDeg, mark.decDeg, wcs, iw, ih, drawX, drawY, drawW, drawH);
+      if (!pt || pt.sx < drawX || pt.sx > drawX + drawW || pt.sy < drawY || pt.sy > drawY + drawH) continue;
+      ctx.save();
+      ctx.strokeStyle = mark.color;
+      ctx.fillStyle = mark.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (mark.shape === 'circle') ctx.arc(pt.sx, pt.sy, 12, 0, Math.PI * 2);
+      else {
+        ctx.moveTo(pt.sx - 10, pt.sy); ctx.lineTo(pt.sx + 10, pt.sy);
+        ctx.moveTo(pt.sx, pt.sy - 10); ctx.lineTo(pt.sx, pt.sy + 10);
+      }
+      ctx.stroke();
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(mark.label.slice(0, 32), pt.sx + 16, pt.sy - 12);
+      ctx.restore();
+    }
+  }
 }
 
 export const TemporalViewer: React.FC<TemporalViewerProps> = ({
@@ -388,6 +414,9 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
   isStacking = false,
   onSaveSnapshot,
   onAddEpochNote,
+  manualMarks,
+  onAddManualMark,
+  onRemoveManualMark,
   onLoadQuickDemo,
   embedMode = false,
 }) => {
@@ -421,6 +450,10 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
   const [compareIndex, setCompareIndex] = useState(0);
   const [exportingGif, setExportingGif] = useState(false);
   const [noteInput, setNoteInput] = useState('');
+  const [markMode, setMarkMode] = useState(false);
+  const [markLabel, setMarkLabel] = useState('');
+  const [markColor, setMarkColor] = useState('#fbbf24');
+  const [markShape, setMarkShape] = useState<'circle' | 'cross'>('circle');
   const [showFlagTable, setShowFlagTable] = useState(false);
 
   const [probe, setProbe] = useState<{
@@ -528,6 +561,8 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
         detections: astrometryDetectionsByFrame[displayedFrame.frameId],
         selectedSourceId,
         tracks: astrometryTracks,
+      manualMarks,
+        manualMarks,
       });
       return;
     }
@@ -559,6 +594,7 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
       detections: astrometryDetectionsByFrame[displayedFrame.frameId],
       selectedSourceId,
       tracks: astrometryTracks,
+      manualMarks,
     });
   }, [
     displayedFrame,
@@ -584,6 +620,7 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
     astrometryDetectionsByFrame,
     selectedSourceId,
     astrometryTracks,
+    manualMarks,
   ]);
 
   // Draw comparison canvas
@@ -616,6 +653,7 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
       detections: astrometryDetectionsByFrame[compareFrame.frameId],
       selectedSourceId,
       tracks: astrometryTracks,
+      manualMarks,
     });
   }, [
     compareMode,
@@ -640,6 +678,7 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
     astrometryDetectionsByFrame,
     selectedSourceId,
     astrometryTracks,
+    manualMarks,
   ]);
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -711,6 +750,42 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!displayedFrame) return;
+    if (markMode) {
+      const spec = getDisplayImageSpec(displayedFrame, reprojectedByFrame, useSkyGrid);
+      const rect = e.currentTarget.getBoundingClientRect();
+      const scale = Math.min(rect.width * 0.88 / spec.width, rect.height * 0.88 / spec.height) * zoom;
+      const drawW = spec.width * scale;
+      const drawH = spec.height * scale;
+      const drawX = (rect.width - drawW) / 2 + pan.x;
+      const drawY = (rect.height - drawH) / 2 + pan.y;
+      const x = ((e.clientX - rect.left - drawX) / drawW) * spec.width;
+      const y = spec.height - 1 - ((e.clientY - rect.top - drawY) / drawH) * spec.height;
+      if (x < 0 || x >= spec.width || y < 0 || y >= spec.height) return;
+      const coords = spec.wcs
+        ? pixelToSky(spec.wcs, x, y)
+        : displayedFrame.wcs
+          ? (() => { const p = pixelToWorld(x, y, displayedFrame.wcs!); return [p.ra, p.dec]; })()
+          : null;
+      if (!coords || !Number.isFinite(coords[0]) || !Number.isFinite(coords[1])) return;
+      onAddManualMark({
+        id: `mark-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        label: markLabel.trim() || 'Object',
+        color: markColor,
+        shape: markShape,
+        raDeg: coords[0],
+        decDeg: coords[1],
+        pixelX: x,
+        pixelY: y,
+        frameId: displayedFrame.frameId,
+        obsId: displayedFrame.observation.obsId,
+        dateObs: displayedFrame.observation.dateObs,
+        createdAt: new Date().toISOString(),
+        kind: 'user-annotation',
+      });
+      setMarkMode(false);
+      setMarkLabel('');
+      return;
+    }
     const dets = astrometryDetectionsByFrame[displayedFrame.frameId];
     if (!dets || dets.length === 0) return;
 
@@ -786,6 +861,7 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
           showGaia: showGaiaOverlay,
           gaiaSources,
           detections: astrometryDetectionsByFrame[f.frameId],
+        manualMarks,
         });
         // Burn rich metadata onto GIF frame: obsId, detector, lambda, UTC, MJD, release, version
         ctx.fillStyle = 'rgba(7, 9, 14, 0.84)';
@@ -1288,6 +1364,26 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
                   : displayedFrame.l2DqaFlag}
               </div>
             </div>
+          )}
+
+          {!embedMode && (
+            <section className="rounded-xl border border-slate-700 bg-[#101827] p-3 space-y-2" aria-label={lang === 'pt' ? 'Marcar fonte luminosa' : 'Mark a light source'}>
+              <div className="flex flex-wrap items-center gap-3 justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-100">{lang === 'pt' ? 'Marque um objeto na imagem' : 'Mark an object in the image'}</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">{lang === 'pt' ? 'Dê um nome, escolha uma cor e clique na fonte luminosa. A posição celeste e o quadro serão salvos no seu caderno.' : 'Name it, pick a color and click a light source. Its sky coordinates and frame will be saved in your notebook.'}</p>
+                </div>
+                <span className="text-xs text-slate-400">{manualMarks.length} {lang === 'pt' ? 'marcações' : 'marks'}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input type="text" value={markLabel} onChange={e => setMarkLabel(e.target.value)} maxLength={60} aria-label={lang === 'pt' ? 'Nome do objeto' : 'Object name'} placeholder={lang === 'pt' ? 'Nome do objeto (ex.: Candidato 1)' : 'Object name (e.g. Candidate 1)'} className="flex-1 min-w-[180px] rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white" />
+                <input type="color" value={markColor} onChange={e => setMarkColor(e.target.value)} aria-label={lang === 'pt' ? 'Cor da marcação' : 'Mark color'} className="w-11 h-9 rounded cursor-pointer" />
+                <select aria-label={lang === 'pt' ? 'Formato da marcação' : 'Marker shape'} value={markShape} onChange={e => setMarkShape(e.target.value as 'circle' | 'cross')} className="rounded-md border border-slate-600 bg-slate-950 px-2 py-2 text-sm text-slate-200"><option value="circle">{lang === 'pt' ? 'Círculo' : 'Circle'}</option><option value="cross">{lang === 'pt' ? 'Cruz' : 'Cross'}</option></select>
+                <button type="button" aria-pressed={markMode} disabled={!displayedFrame?.astrometryWcs && !displayedFrame?.wcs && !reprojectedByFrame[displayedFrame?.frameId ?? '']} onClick={() => setMarkMode(v => !v)} className={markMode ? 'rounded-md bg-amber-400 text-slate-950 px-4 py-2 text-sm font-bold' : 'rounded-md bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 px-4 py-2 text-sm font-semibold text-slate-950'}>{markMode ? (lang === 'pt' ? 'Clique na imagem…' : 'Click the image…') : (lang === 'pt' ? 'Marcar objeto' : 'Mark object')}</button>
+              </div>
+              {manualMarks.length > 0 && <div className="flex flex-wrap gap-2" aria-label={lang === 'pt' ? 'Marcações salvas' : 'Saved marks'}>{manualMarks.slice(-8).map(mark => <span key={mark.id} className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 flex items-center gap-1"><span aria-hidden="true" className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: mark.color }} />{mark.label} <button type="button" onClick={() => onRemoveManualMark(mark.id)} aria-label={`Remove ${mark.label}`} className="ml-1 text-slate-400 hover:text-rose-300">×</button></span>)}</div>}
+              <p className="text-[11px] text-slate-500">{lang === 'pt' ? 'Uma marcação manual não é uma descoberta cientificamente confirmada.' : 'A manual mark is not a scientifically confirmed discovery.'}</p>
+            </section>
           )}
 
           {/* Canvas Viewport(s) */}

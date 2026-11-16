@@ -19,7 +19,7 @@ import {
 } from '../lib/exports';
 import type { Language } from '../lib/i18n';
 import { TRANSLATIONS } from '../lib/i18n';
-import type { InvestigationRecord } from '../types/spherex';
+import type { InvestigationRecord, ManualMark } from '../types/spherex';
 
 interface NotebookReportsProps {
   lang: Language;
@@ -31,6 +31,8 @@ interface NotebookReportsProps {
   onDeleteInvestigation: (id: string) => void;
   onUpdateActive: (patch: Partial<InvestigationRecord>) => void;
   onAttachCurrentRegion: () => void;
+  onOpenManualMark: (mark: ManualMark) => void;
+  onRemoveManualMark: (id: string) => void;
 }
 
 export const NotebookReports: React.FC<NotebookReportsProps> = ({
@@ -43,6 +45,8 @@ export const NotebookReports: React.FC<NotebookReportsProps> = ({
   onDeleteInvestigation,
   onUpdateActive,
   onAttachCurrentRegion,
+  onOpenManualMark,
+  onRemoveManualMark,
 }) => {
   const t = TRANSLATIONS[lang];
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -199,6 +203,28 @@ export const NotebookReports: React.FC<NotebookReportsProps> = ({
                 />
               </label>
             </div>
+
+            <section className="bg-[#0B0E17] border border-slate-800 rounded-md p-4 space-y-2" aria-label={lang === 'pt' ? 'Objetos marcados' : 'Marked objects'}>
+              <h3 className="text-sm font-semibold text-slate-100">{lang === 'pt' ? 'Meus objetos marcados' : 'My marked objects'} ({active.manualMarks?.length ?? 0})</h3>
+              <p className="text-xs text-slate-400">{lang === 'pt' ? 'As coordenadas e o identificador da observação ficam salvos neste navegador. Exporte o JSON para fazer cópia de segurança.' : 'Coordinates and observation IDs are saved in this browser. Export JSON to keep a backup.'}</p>
+              {!(active.manualMarks?.length) ? <p className="text-xs text-slate-500">{lang === 'pt' ? 'Nenhum objeto marcado ainda. Abra uma imagem e use Marcar objeto.' : 'No objects marked yet. Open a frame and choose Mark object.'}</p> :
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {active.manualMarks.map(mark => (
+                    <div key={mark.id} className="rounded-lg border border-slate-700 bg-slate-950 p-3 flex items-start gap-3">
+                      <div className="h-3 w-3 rounded-full mt-1 shrink-0" style={{ backgroundColor: mark.color }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-200">{mark.label}</p>
+                        <p className="text-xs font-mono text-slate-400 mt-1">RA {mark.raDeg.toFixed(6)}° · Dec {mark.decDeg.toFixed(6)}°</p>
+                        <p className="text-[11px] text-slate-500 break-all mt-1">{mark.obsId} · {mark.dateObs.slice(0, 19)}</p>
+                        <div className="flex gap-3 mt-2">
+                          <button type="button" onClick={() => onOpenManualMark(mark)} className="text-xs text-cyan-300 hover:underline">{lang === 'pt' ? 'Abrir região' : 'Open region'}</button>
+                          <button type="button" onClick={() => onRemoveManualMark(mark.id)} className="text-xs text-rose-300 hover:underline">{lang === 'pt' ? 'Excluir marca' : 'Delete mark'}</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>}
+            </section>
 
             {/* Saved Observations, Epoch Notes & Snapshots */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
