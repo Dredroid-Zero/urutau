@@ -1,8 +1,6 @@
 import express from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createServer as createViteServer } from 'vite';
 import {
   CUTOUT_DEFAULTS,
   estimateCutoutTransfer,
@@ -28,8 +26,21 @@ import type {
   SpherexObservation,
 } from './src/types/spherex';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT = 3000;
+const projectRoot = process.cwd();
+
+export interface UrutauServerOptions {
+  port?: number;
+  host?: string;
+  staticDir?: string;
+  dataDir?: string;
+  production?: boolean;
+}
+
+export interface UrutauServerHandle {
+  port: number;
+  url: string;
+  close: () => Promise<void>;
+}
 
 export const SPHEREX_DR1_CUBE_WAVELENGTHS_UM = [
   0.753, 0.771, 0.790, 0.809, 0.828, 0.848, 0.868, 0.889, 0.910, 0.932, 0.955, 0.978, 1.001, 1.025, 1.050, 1.075, 1.102,
@@ -373,8 +384,13 @@ const VERIFIED_QR3_MULTI_SLEW: SpherexObservation[] = [
   },
 ];
 
-async function startServer() {
+export async function startServer(options: UrutauServerOptions = {}): Promise<UrutauServerHandle> {
   const app = express();
+  const port = options.port ?? 3000;
+  const host = options.host ?? '127.0.0.1';
+  const staticDir = options.staticDir ?? path.join(projectRoot, 'dist');
+  const dataDir = options.dataDir ?? path.join(projectRoot, 'data');
+  const production = options.production ?? process.env.NODE_ENV === 'production';
   app.use(express.json({ limit: '4mb' }));
 
   app.get('/api/health', (_req, res) => {
@@ -1030,7 +1046,6 @@ async function startServer() {
     };
 
     try {
-      const dataDir = path.join(__dirname, 'data');
       await fs.mkdir(dataDir, { recursive: true });
       const filePath = path.join(dataDir, 'feedback.json');
       let list: unknown[] = [];
@@ -1048,22 +1063,47 @@ async function startServer() {
     }
   });
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (!production) {
+    // Development-only module, omitted from the Windows portable package.
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.join(__dirname, 'dist')));
+    app.use(express.static(staticDir));
     app.get('*', (_req, res) => {
-      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.join(staticDir, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`URUTAU server listening on http://localhost:${PORT}`);
+  return new Promise<UrutauServerHandle>((resolve, reject) => {
+    const listener = app.listen(port, host);
+    listener.once('error', reject);
+    listener.once('listening', () => {
+      const address = listener.address();
+      if (!address || typeof address === 'string') {
+        listener.close();
+        reject(new Error('Could not determine the local listening port.'));
+        return;
+      }
+      const url = `http://${host}:${address.port}`;
+      console.log(`URUTAU server listening on ${url}`);
+      resolve({
+        port: address.port,
+        url,
+        close: () => new Promise<void>((done, fail) => {
+          listener.close(err => (err ? fail(err) : done()));
+        }),
+      });
+    });
   });
 }
 
-startServer();
+if (process.env.URUTAU_EMBEDDED !== '1') {
+  void startServer().catch(err => {
+    console.error('URUTAU could not start:', err);
+    process.exitCode = 1;
+  });
+}

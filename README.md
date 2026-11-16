@@ -6,6 +6,22 @@ URUTAU is an independent public-facing astronomy web application built for the *
 
 > URUTAU is an independent project. NASA does not endorse it. Archive availability and scientific interpretation must be checked against the original providers.
 
+## Windows — iniciar com um clique
+
+**A versão portátil não exige Node.js, npm nem comandos no terminal.**
+
+1. Acesse [Releases do URUTAU](https://github.com/Dredroid-Zero/urutau/releases).
+2. Na versão **Windows Portable**, baixe o arquivo **URUTAU.exe**.
+3. Dê **dois cliques**. O URUTAU abre em uma janela própria; seu servidor fica acessível somente dentro do computador.
+
+O executável reúne os arquivos internos e o runtime em um **único arquivo portátil**, que extrai componentes temporários ao iniciar. O caderno de descobertas é guardado no perfil do Windows. **É necessário acesso à internet para consultar imagens SPHEREx, Gaia ou SIMBAD reais**.
+
+**Segurança:** o executável comunitário não é assinado digitalmente e o Windows pode mostrar uma verificação SmartScreen. Baixe apenas do repositório oficial; não desative as proteções do Windows. URUTAU é um projeto independente, não um produto oficial da NASA.
+
+### Para colaboradores
+
+O código-fonte permanece organizado em `src/`, `desktop/` e `docs/`. O instalador portátil é produzido automaticamente no GitHub Actions, não versionado como binário de código-fonte.
+
 ## Get started
 
 1. **Explore the sky** — pan and zoom the interactive Aladin Lite atlas, enter a target name or RA/Dec, or click **Choose a sky tile** to pick one of nine visible regions.
@@ -54,6 +70,9 @@ Read [Data sources](docs/DATA_SOURCES.md) and [Validation](docs/VALIDATION.md).
 | Path | Responsibility |
 | --- | --- |
 | `server.ts` | Express API and live IRSA/Gaia/SIMBAD access |
+| `desktop/` | Entrada da aplicação Windows e teste do servidor empacotado |
+| `electron-builder.yml` | Configuração do executável portátil único |
+| `.github/workflows/windows-portable.yml` | Compilação automatizada no Windows e publicação do executável |
 | `src/App.tsx` | User journey, state and notebook persistence wiring |
 | `src/components/SkyExplorer.tsx` | Aladin Lite map, tile selection and coordinate search |
 | `src/components/ObservationExplorer.tsx` | Observations catalog and filters |
