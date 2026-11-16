@@ -1,0 +1,35 @@
+name: Live IRSA validation (post-submission QA branch)
+
+on:
+  push:
+    branches:
+      - qa/live-archive-validation-2026-11-16
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build website and isolated production API
+        run: |
+          npm run build
+          npm run build:server
+      - name: Real archive observation and FITS checks (no sample images, no mocks)
+        run: node scripts/live-archive-smoke.mjs
+      - name: Keep evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: urutau-live-irsa-qa-report
+          path: qa-results/live-archive-smoke.json
+          if-no-files-found: warn
