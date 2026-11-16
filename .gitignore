@@ -9,3 +9,7 @@ coverage/
 data/
 .cache/
 .vite/
+
+# Windows portable build outputs
+release/
+dist-server/
