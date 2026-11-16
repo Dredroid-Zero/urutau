@@ -19,21 +19,21 @@ For a first test, use the documented **SPHEREx QR3 calibration field**. The five
 
 Pré-requisitos: Node.js 22.12+ e npm.
 
-\`\`\`bash
+```bash
 npm install
 npm run dev
-\`\`\`
+```
 
 Abra **http://localhost:3000**. A aplicação integra front-end React/Vite e servidor Express; **não** execute apenas a prévia estática do Vite se quiser consultar o IRSA. Não é necessária uma chave Gemini para as funções astronômicas.
 
-\`\`\`bash
+```bash
 npm run lint
 npm test
 npm run build
 NODE_ENV=production npm start
-\`\`\`
+```
 
-Node 22+ is recommended. The production server serves the built \`dist/\` directory and the \`/api\` routes.
+Node 22+ is recommended. The production server serves the built `dist/` directory and the `/api` routes.
 
 ## Is the data real?
 
@@ -53,17 +53,17 @@ Read [Data sources](docs/DATA_SOURCES.md) and [Validation](docs/VALIDATION.md).
 
 | Path | Responsibility |
 | --- | --- |
-| \`server.ts\` | Express API and live IRSA/Gaia/SIMBAD access |
-| \`src/App.tsx\` | User journey, state and notebook persistence wiring |
-| \`src/components/SkyExplorer.tsx\` | Aladin Lite map, tile selection and coordinate search |
-| \`src/components/ObservationExplorer.tsx\` | Observations catalog and filters |
-| \`src/components/TemporalViewer.tsx\` | Image controls, overlays, annotations and playback |
-| \`src/components/AstrometryPanel.tsx\` | Expert measurement tools |
-| \`src/components/NotebookReports.tsx\` | Local reports, exports and saved objects |
-| \`src/lib/\` | FITS, WCS, astrometry, scientific processing and notebook storage |
-| \`src/config/spherex.ts\` | Data-release catalog and IRSA endpoints |
-| \`src/types/spherex.ts\` | Shared models and provenance types |
-| \`docs/\` | Architecture, data sources and validation plan |
+| `server.ts` | Express API and live IRSA/Gaia/SIMBAD access |
+| `src/App.tsx` | User journey, state and notebook persistence wiring |
+| `src/components/SkyExplorer.tsx` | Aladin Lite map, tile selection and coordinate search |
+| `src/components/ObservationExplorer.tsx` | Observations catalog and filters |
+| `src/components/TemporalViewer.tsx` | Image controls, overlays, annotations and playback |
+| `src/components/AstrometryPanel.tsx` | Expert measurement tools |
+| `src/components/NotebookReports.tsx` | Local reports, exports and saved objects |
+| `src/lib/` | FITS, WCS, astrometry, scientific processing and notebook storage |
+| `src/config/spherex.ts` | Data-release catalog and IRSA endpoints |
+| `src/types/spherex.ts` | Shared models and provenance types |
+| `docs/` | Architecture, data sources and validation plan |
 
 Read [Architecture](docs/ARCHITECTURE.md) for the full flow.
 

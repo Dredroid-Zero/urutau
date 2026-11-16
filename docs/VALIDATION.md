@@ -4,7 +4,7 @@ Last reviewed: 15 November 2026. This is a **verification plan**, not a declarat
 
 | Check | Status | Evidence required |
 | --- | --- | --- |
-| Source structure and API paths reviewed | Reviewed in code | \`server.ts\`, relevant components |
+| Source structure and API paths reviewed | Reviewed in code | `server.ts`, relevant components |
 | Mathematical FITS / astrometry unit tests | **Passed in GitHub Actions** | Offline synthetic fixtures; does not establish performance on real SPHEREx data |
 | TypeScript and Vite production build | **Passed in GitHub Actions** | [Quality checks](https://github.com/Dredroid-Zero/urutau/actions/workflows/ci.yml) |
 | Aladin map drag, click and 3×3 tile overlay | Implementation added, browser check pending | Screen recording or manual QA |
@@ -24,7 +24,7 @@ Last reviewed: 15 November 2026. This is a **verification plan**, not a declarat
 
 ## Minimal end-to-end acceptance test
 
-1. Start \`npm run dev\` with network access.
+1. Start `npm run dev` with network access.
 2. Select the published QR3 calibration pointing or an arbitrary region.
 3. Verify IRSA record identifiers, dates, detector, release and reference URL.
 4. Download **two actual FITS cutouts**, checking the server did not substitute cube tiles or synthetic data.

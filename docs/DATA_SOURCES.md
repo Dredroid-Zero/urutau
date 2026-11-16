@@ -13,7 +13,7 @@ URUTAU intentionally connects to **multiple scientific providers**, but roles mu
 
 For SPHEREx current releases, follow https://irsa.ipac.caltech.edu/spherex-archive-documentation/spherex-data-releases/ . DR1 (Surveys 1–2) and QR3 (Surveys 3–4) use compatible reprocessing; QR2 has been superseded and should not be mixed into primary comparisons.
 
-**Archive lookup is not proof of a successful image download.** A row has \`provenanceSource\` and \`fetchStatus\`. Actual pixels are displayed only when IRSA returns a readable FITS cutout. The built-in calibration-field preset references published filenames; it is not an offline image fixture.
+**Archive lookup is not proof of a successful image download.** A row has `provenanceSource` and `fetchStatus`. Actual pixels are displayed only when IRSA returns a readable FITS cutout. The built-in calibration-field preset references published filenames; it is not an offline image fixture.
 
 The viewer also supports user-generated labels: each saved label stores name, color, shape, RA, Dec, original image ID, image date, pixel coordinates at marking time and creation time. These records are annotations, not source catalog detections.
 

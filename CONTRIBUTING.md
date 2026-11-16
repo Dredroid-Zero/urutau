@@ -6,12 +6,12 @@ URUTAU serves two audiences: people exploring astronomy for the first time and p
 
 1. Open an issue describing the user problem or scientific bug.
 2. Work in a short-lived branch. Avoid unrelated sweeping rewrites.
-3. Run \`npm run lint\`, \`npm test\` and \`npm run build\`.
+3. Run `npm run lint`, `npm test` and `npm run build`.
 4. Create a pull request with **what changed**, **how you tested**, **what remains unverified**, and screenshots for visible UI changes.
 
 ## Source conventions
 
-- Keep UI state in \`src/App.tsx\` and presentation logic in focused components.
+- Keep UI state in `src/App.tsx` and presentation logic in focused components.
 - Prefer a small, named function over duplicated inline callbacks when an action repeats.
 - Label coordinates using the **ICRS frame** and degrees or sexagesimal units.
 - Preserve observation identifiers, UTC/MJD epochs, release, detector, wavelength and archive path.
@@ -23,7 +23,7 @@ URUTAU serves two audiences: people exploring astronomy for the first time and p
 
 ## Testing
 
-The existing tests under \`src/lib/*.test.ts\` use synthetic fixtures for numeric algorithms. Their success does **not** establish scientific performance on SPHEREx images. Maintain live manual checks separately in [docs/VALIDATION.md](docs/VALIDATION.md).
+The existing tests under `src/lib/*.test.ts` use synthetic fixtures for numeric algorithms. Their success does **not** establish scientific performance on SPHEREx images. Maintain live manual checks separately in [docs/VALIDATION.md](docs/VALIDATION.md).
 
 ## Pull request checklist
 
