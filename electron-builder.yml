@@ -1,0 +1,20 @@
+appId: org.urutau.desktop
+productName: URUTAU
+directories:
+  output: release
+files:
+  - desktop/main.cjs
+  - dist/**/*
+  - dist-server/server.cjs
+  - package.json
+  - "!**/*.map"
+asar: true
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  artifactName: URUTAU.exe
+  forceCodeSigning: false
+portable:
+  unpackDirName: URUTAU-portable

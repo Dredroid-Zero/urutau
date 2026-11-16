@@ -1,0 +1,69 @@
+name: Windows portable executable
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - server.ts
+      - desktop/**
+      - electron-builder.yml
+      - package.json
+      - .github/workflows/windows-portable.yml
+  pull_request:
+    paths:
+      - server.ts
+      - desktop/**
+      - electron-builder.yml
+      - package.json
+      - .github/workflows/windows-portable.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify TypeScript and scientific unit tests
+        run: |
+          npm run lint
+          npm test
+      - name: Build desktop application
+        run: npm run desktop:package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Smoke-test bundled production HTTP server
+        run: npm run test:desktop:server
+      - name: Confirm single executable was produced
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "release/URUTAU.exe")) { throw "URUTAU.exe was not generated." }
+          Get-Item "release/URUTAU.exe" | Select-Object Name, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: URUTAU-Windows-Portable
+          path: release/URUTAU.exe
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish direct-download executable to Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "windows-portable-v0.1.0"
+          gh release view $tag | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "URUTAU Windows Portable" --notes "Double-click URUTAU.exe to launch a local desktop window; no Node.js installation required. NASA/IRSA data downloads still need internet. Unsigned community build."
+            if ($LASTEXITCODE -ne 0) { throw "Could not create Windows portable release." }
+          }
+          gh release upload $tag "release/URUTAU.exe" --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Could not upload URUTAU.exe." }
