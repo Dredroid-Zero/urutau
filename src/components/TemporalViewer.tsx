@@ -561,7 +561,6 @@ export const TemporalViewer: React.FC<TemporalViewerProps> = ({
         detections: astrometryDetectionsByFrame[displayedFrame.frameId],
         selectedSourceId,
         tracks: astrometryTracks,
-      manualMarks,
         manualMarks,
       });
       return;
